@@ -6,6 +6,7 @@ mod dto;
 mod utils;
 mod state;
 mod middleware;
+mod websocket;
 
 use std::net::SocketAddr;
 use tower_http::{
@@ -33,7 +34,7 @@ async fn main() {
     let redis_client = redis::Client::open(config.redis.url.clone())
         .expect("Failed to create Redis client");
     let redis_conn = redis_client
-        .get_multiplexed_async_connection()
+        .get_connection_manager()
         .await
         .expect("Failed to connect to Redis");
 
