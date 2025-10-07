@@ -1,12 +1,14 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use redis::aio::ConnectionManager;
 use redis::AsyncTypedCommands;
 use uuid::Uuid;
-use crate::dto::{RoleCreateRequest, RoleResponse, RoleUpdateRequest};
+use crate::dto::{RoleAssignment, RoleCreateRequest, RoleDistribution, RoleResponse, RoleUpdateRequest};
 use crate::middleware::AuthUser;
 use crate::models::Role;
 use crate::state::AppState;
+use crate::utils::{group_roles_by_type, select_roles_for_game};
 
 #[utoipa::path(
     post,
@@ -32,6 +34,7 @@ pub async fn create_role(
     let role = RoleResponse {
         id: uuid::Uuid::new_v4(),
         name: data.name,
+        slug: data.slug,
         description: data.description,
         image: data.image,
         role_type: data.role_type,
@@ -79,6 +82,7 @@ pub async fn get_roles(
     role_responses.push(RoleResponse {
             id: role.id,
             name: role.name,
+            slug: role.slug,
             description: role.description,
             image: role.image,
             role_type: role.role_type,
@@ -123,6 +127,7 @@ pub async fn get_role_by_id(
     Ok(Json(RoleResponse {
         id: role.id,
         name: role.name,
+        slug: role.slug,
         description: role.description,
         image: role.image,
         role_type: role.role_type,
@@ -165,6 +170,7 @@ pub async fn update_role(
     let new_role = Role {
         id: role.id,
         name: data.name.unwrap_or(role.name),
+        slug: data.slug.unwrap_or(role.slug),
         description: data.description.unwrap_or(role.description),
         image: data.image.or(role.image),
         role_type: data.role_type.unwrap_or(role.role_type),
@@ -178,8 +184,75 @@ pub async fn update_role(
     Ok(Json(RoleResponse {
         id: new_role.id,
         name: new_role.name,
+        slug: new_role.slug,
         description: new_role.description,
         image: new_role.image,
         role_type: new_role.role_type,
     }))
+}
+
+pub async fn fetch_available_roles (
+    redis: &mut ConnectionManager
+) -> Result<Vec<RoleResponse>, String>{
+    let role_keys: Vec<String> = redis
+        .keys("role:*")
+        .await
+        .map_err(|e| format!("Failed to fetch roles: {}", e))?;
+    
+    let mut roles = Vec::new();
+    
+    for key in role_keys {
+        let role_data: Option<String> = redis
+            .get(&key)
+            .await
+            .map_err(|e| format!("Failed to get role data: {}", e))?;
+        
+        if let Some(data) = role_data {
+            let role: Role = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse role data: {}", e))?;
+            roles.push(RoleResponse {
+                id: role.id,
+                name: role.name,
+                slug: role.slug,
+                description: role.description,
+                image: role.image,
+                role_type: role.role_type,
+            });
+        }
+    }
+    Ok(roles)
+}
+
+pub async fn assign_roles (
+    redis: &mut ConnectionManager,
+    player_ids: Vec<Uuid>,
+) -> Result<Vec<RoleAssignment>, String> {
+    let distribution = RoleDistribution::for_players(player_ids.len());
+    
+    let available_roles = fetch_available_roles(redis).await?;
+    
+    let roles_by_type = group_roles_by_type(available_roles);
+    
+    let selected_role_ids = select_roles_for_game(roles_by_type, distribution)
+        .map_err(|e| e.to_string())?;
+    
+    if selected_role_ids.len() != player_ids.len() {
+        Err(format!(
+            "Role count {} does not match player count {}",
+            selected_role_ids.len(),
+            player_ids.len()
+        ))
+    } else {
+        let assignments: Vec<RoleAssignment> = player_ids
+            .into_iter()
+            .zip(selected_role_ids.into_iter())
+            .map(|(player_id, role_id)| RoleAssignment {
+                player_id,
+                role_id,
+            })
+            .collect();
+        
+        Ok(assignments)
+    }
+    
 }

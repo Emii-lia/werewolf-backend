@@ -13,6 +13,7 @@ pub enum RoleType {
 pub struct Role {
     pub id: Uuid,
     pub name: String,
+    pub slug: String,
     pub description: String,
     pub image: Option<String>,
     pub role_type: RoleType,
