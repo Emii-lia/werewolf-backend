@@ -7,7 +7,7 @@ use axum::{
 };
 use utoipa::OpenApi;
 use crate::{
-    handlers::{signup, login},
+    handlers::{signup, login, create_guest_session},
     dto::{
         SignupRequest,
         LoginRequest,
@@ -16,17 +16,30 @@ use crate::{
         RoleResponse,
         RoleCreateRequest,
         RoleUpdateRequest,
+        CreateRoomRequest,
+        RoomInfo,
+        RoomDetails,
+        PlayerDetails,
+        CreateGuestRequest,
+        GuestSessionResponse,
     },
+    models::{GameState},
     state::AppState,
-    middleware::auth_middleware,
+    middleware::{auth_middleware, inject_state_middleware},
 };
-use crate::handlers::{create_role, get_role_by_id, get_roles, get_user_by_id, get_user_by_username, get_users, update_role, verify_username_exists};
+use crate::handlers::{
+    create_role, get_role_by_id, get_roles,
+    get_user_by_id, get_user_by_username, get_users, verify_username_exists,
+    update_role, ws_handler,
+    create_room, get_rooms, get_room_details,
+};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         crate::handlers::signup,
         crate::handlers::login,
+        crate::handlers::create_guest_session,
         crate::handlers::get_users,
         crate::handlers::get_user_by_id,
         crate::handlers::get_user_by_username,
@@ -35,20 +48,32 @@ use crate::handlers::{create_role, get_role_by_id, get_roles, get_user_by_id, ge
         crate::handlers::get_roles,
         crate::handlers::get_role_by_id,
         crate::handlers::update_role,
+        crate::handlers::create_room,
+        crate::handlers::get_rooms,
+        crate::handlers::get_room_details,
     ),
     components(schemas(
         UserResponse,
         SignupRequest,
         LoginRequest,
         LoginResponse,
+        CreateGuestRequest,
+        GuestSessionResponse,
         RoleCreateRequest,
         RoleResponse,
         RoleUpdateRequest,
+        CreateRoomRequest,
+        RoomInfo,
+        RoomDetails,
+        PlayerDetails,
+        GameState,
     )),
     tags(
         (name = "auth", description = "Authentication endpoints"),
+        (name = "guest", description = "Guest session endpoints"),
         (name = "users", description = "User management endpoints"),
-        (name = "roles", description = "Game roles management endpoints")
+        (name = "roles", description = "Game roles management endpoints"),
+        (name = "rooms", description = "Game room management endpoints")
     ),
     modifiers(&SecurityAddon)
 )]
@@ -84,15 +109,24 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/roles/{id}", get(get_role_by_id).put(update_role))
         .layer(from_fn_with_state(state.clone(), auth_middleware));
 
+    let room_routes = Router::new()
+        .route("/api/rooms", get(get_rooms).post(create_room))
+        .route("/api/rooms/{room_id}", get(get_room_details))
+        .layer(from_fn_with_state(state.clone(), auth_middleware));
+
     Router::new()
         .route("/api-docs/openapi.json", get(serve_api_docs))
         .route("/swagger-ui", get(serve_swagger))
         .route("/health", get(health_check))
         .route("/api/auth/signup", post(signup))
         .route("/api/auth/login", post(login))
+        .route("/api/guest/session", post(create_guest_session))
+        .route("/ws", get(ws_handler))
         .route("/api/users/verify/{username}", get(verify_username_exists))
         .merge(user_routes)
         .merge(role_routes)
+        .merge(room_routes)
+        .layer(from_fn_with_state(state.clone(), inject_state_middleware))
         .with_state(state)
 }
 
