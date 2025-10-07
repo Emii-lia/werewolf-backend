@@ -24,3 +24,6 @@ uuid = { version = "1.18.1", features = ["v4", "serde"] }
 chrono = "0.4.42"
 async-trait = "0.1.89"
 rand_core = { version = "0.6", features = ["getrandom"] }
+futures = "0.3"
+future-utils = "0.12.1"
+rand = "0.9.2"
