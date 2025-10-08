@@ -45,6 +45,16 @@ impl GameRoom {
     }
 
     pub fn add_player(&mut self, player: Player, tx: Tx) -> Result<(), String> {
+        if player.user_id == self.host_id {
+            self.connections.insert(player.user_id, tx);
+            return Ok(());
+        }
+
+        if self.players.iter().any(|p| p.user_id == player.user_id) {
+            self.connections.insert(player.user_id, tx);
+            return Ok(());
+        }
+
         if self.players.len() >= self.max_players {
             return Err("Room is full".to_string());
         }
@@ -67,11 +77,10 @@ impl GameRoom {
 
     pub async fn broadcast(&self, message: Message, exclude: Option<Uuid>) {
         for (user_id, tx) in &self.connections {
-            if let Some(excluded_id) = exclude {
-                if user_id == &excluded_id {
+            if let Some(excluded_id) = exclude
+                && user_id == &excluded_id {
                     continue;
                 }
-            }
             let _ = tx.send(message.clone());
         }
     }
@@ -82,5 +91,12 @@ impl GameRoom {
         }
         self.game_state = GameState::Starting;
         Ok(())
+    }
+
+    pub fn reset_for_new_game(&mut self) {
+        self.game_state = GameState::Starting;
+        for player in self.players.iter_mut() {
+            player.role_id = None;
+        }
     }
 }

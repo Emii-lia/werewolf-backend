@@ -1,7 +1,7 @@
+use crate::dto::{PlayerDetails, PlayerWithRole};
+use crate::models::GameState;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::dto::PlayerDetails;
-use crate::models::GameState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "PascalCase")]
@@ -22,6 +22,8 @@ pub enum ClientMessage {
     StartGame { room_id: Uuid },
     #[serde(rename_all = "snake_case")]
     RemovePlayer { room_id: Uuid, user_id: Uuid },
+    #[serde(rename_all = "snake_case")]
+    ReassignRoles { room_id: Uuid  },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,19 +43,33 @@ pub enum ServerMessage {
     #[serde(rename_all = "snake_case")]
     RoomLeft { room_id: Uuid },
     #[serde(rename_all = "snake_case")]
-    PlayerJoined { room_id: Uuid, player: PlayerDetails },
+    PlayerJoined {
+        room_id: Uuid,
+        player: PlayerDetails,
+    },
     #[serde(rename_all = "snake_case")]
     PlayerLeft { room_id: Uuid, user_id: Uuid },
     #[serde(rename_all = "snake_case")]
-    PlayerReady { room_id: Uuid, user_id: Uuid, is_ready: bool },
+    PlayerReady {
+        room_id: Uuid,
+        user_id: Uuid,
+        is_ready: bool,
+    },
     #[serde(rename_all = "snake_case")]
     PlayerKicked { room_id: Uuid, user_id: Uuid },
     #[serde(rename_all = "snake_case")]
-    Message { room_id: Uuid, user_id: Uuid, username: String, message: String },
+    Message {
+        room_id: Uuid,
+        user_id: Uuid,
+        username: String,
+        message: String,
+    },
     #[serde(rename_all = "snake_case")]
     GameStarting { room_id: Uuid },
     #[serde(rename_all = "snake_case")]
     RoleAssigned { role_id: Uuid },
+    #[serde(rename_all = "snake_case")]
+    AllRolesAssigned { players: Vec<PlayerWithRole> },
     #[serde(rename_all = "snake_case")]
     Error { message: String },
 }
