@@ -49,49 +49,46 @@ where
 {
     type Rejection = StatusCode;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
         state: &S,
-    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
-            if let Some(user_id) = parts.extensions.get::<Uuid>().copied() {
+    ) -> Result<Self, Self::Rejection> {
+        if let Some(user_id) = parts.extensions.get::<Uuid>().copied() {
+            return Ok(AuthUser(user_id));
+        }
+
+        let auth_header = parts
+            .headers
+            .get("Authorization")
+            .and_then(|h| h.to_str().ok());
+
+        if let Some(header) = auth_header
+            && let Some(token) = header.strip_prefix("Bearer ") {
+                let app_state = parts
+                    .extensions
+                    .get::<crate::state::AppState>()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                let user_id = validate_token(token, &app_state.config.jwt.secret)
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
                 return Ok(AuthUser(user_id));
             }
 
-            let auth_header = parts
-                .headers
-                .get("Authorization")
-                .and_then(|h| h.to_str().ok());
+        let query = parts.uri.query().unwrap_or("");
+        for param in query.split('&') {
+            if let Some(token) = param.strip_prefix("token=") {
+                let app_state = parts
+                    .extensions
+                    .get::<crate::state::AppState>()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            if let Some(header) = auth_header {
-                if let Some(token) = header.strip_prefix("Bearer ") {
-                    let app_state = parts
-                        .extensions
-                        .get::<crate::state::AppState>()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                    let user_id = validate_token(token, &app_state.config.jwt.secret)
-                        .ok_or(StatusCode::UNAUTHORIZED)?;
-                    return Ok(AuthUser(user_id));
-                }
+                let user_id = validate_token(token, &app_state.config.jwt.secret)
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
+                return Ok(AuthUser(user_id));
             }
-
-            let query = parts.uri.query().unwrap_or("");
-            for param in query.split('&') {
-                if let Some(token) = param.strip_prefix("token=") {
-                    let app_state = parts
-                        .extensions
-                        .get::<crate::state::AppState>()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-
-                    let user_id = validate_token(token, &app_state.config.jwt.secret)
-                        .ok_or(StatusCode::UNAUTHORIZED)?;
-                    return Ok(AuthUser(user_id));
-                }
-            }
-
-            Err(StatusCode::UNAUTHORIZED)
         }
+
+        Err(StatusCode::UNAUTHORIZED)
     }
 }
 
@@ -129,58 +126,54 @@ where
 {
     type Rejection = StatusCode;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
         _state: &S,
-    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
-            let auth_header = parts
-                .headers
-                .get("Authorization")
-                .and_then(|h| h.to_str().ok());
+    ) -> Result<Self, Self::Rejection> {
+        let auth_header = parts
+            .headers
+            .get("Authorization")
+            .and_then(|h| h.to_str().ok());
 
-            let token = if let Some(header) = auth_header {
-                header.strip_prefix("Bearer ")
-            } else {
-                let query = parts.uri.query().unwrap_or("");
-                query
-                    .split('&')
-                    .find_map(|param| param.strip_prefix("token="))
-            };
+        let token = if let Some(header) = auth_header {
+            header.strip_prefix("Bearer ")
+        } else {
+            let query = parts.uri.query().unwrap_or("");
+            query
+                .split('&')
+                .find_map(|param| param.strip_prefix("token="))
+        };
 
-            let token = token.ok_or(StatusCode::UNAUTHORIZED)?;
+        let token = token.ok_or(StatusCode::UNAUTHORIZED)?;
 
-            let app_state = parts
-                .extensions
-                .get::<crate::state::AppState>()
-                .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+        let app_state = parts
+            .extensions
+            .get::<crate::state::AppState>()
+            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            let id = validate_token(token, &app_state.config.jwt.secret)
-                .ok_or(StatusCode::UNAUTHORIZED)?;
+        let id = validate_token(token, &app_state.config.jwt.secret)
+            .ok_or(StatusCode::UNAUTHORIZED)?;
 
-            let mut conn = app_state.redis.clone();
+        let mut conn = app_state.redis.clone();
 
-            let guest_key = format!("guest:{}", id);
-            if let Ok(Some(guest_data)) = conn.get::<_, Option<String>>(&guest_key).await {
-                if let Ok(guest) = serde_json::from_str::<GuestSession>(&guest_data) {
-                    return Ok(Player(PlayerIdentity::Guest {
-                        session_id: guest.session_id,
-                        username: guest.username,
-                    }));
-                }
+        let guest_key = format!("guest:{}", id);
+        if let Ok(Some(guest_data)) = conn.get::<_, Option<String>>(&guest_key).await
+            && let Ok(guest) = serde_json::from_str::<GuestSession>(&guest_data) {
+                return Ok(Player(PlayerIdentity::Guest {
+                    session_id: guest.session_id,
+                    username: guest.username,
+                }));
             }
 
-            let user_key = format!("user:{}", id);
-            if let Ok(Some(user_data)) = conn.get::<_, Option<String>>(&user_key).await {
-                if let Ok(user) = serde_json::from_str::<crate::models::User>(&user_data) {
-                    return Ok(Player(PlayerIdentity::Registered {
-                        user_id: user.id,
-                        username: user.username,
-                    }));
-                }
+        let user_key = format!("user:{}", id);
+        if let Ok(Some(user_data)) = conn.get::<_, Option<String>>(&user_key).await
+            && let Ok(user) = serde_json::from_str::<crate::models::User>(&user_data) {
+                return Ok(Player(PlayerIdentity::Registered {
+                    user_id: user.id,
+                    username: user.username,
+                }));
             }
 
-            Err(StatusCode::UNAUTHORIZED)
-        }
+        Err(StatusCode::UNAUTHORIZED)
     }
 }
