@@ -1,4 +1,4 @@
-use redis::aio::{ConnectionManager, MultiplexedConnection};
+use redis::aio::ConnectionManager;
 use crate::configs::Config;
 use crate::websocket::RoomState;
 

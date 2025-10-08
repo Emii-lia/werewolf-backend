@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 use crate::dto::player::PlayerDetails;
-use crate::models::{GameState, Player};
+use crate::models::GameState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateRoomRequest {

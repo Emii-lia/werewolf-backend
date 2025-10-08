@@ -9,11 +9,12 @@ mod middleware;
 mod websocket;
 
 use std::net::SocketAddr;
+use tokio::net::TcpListener;
 use tower_http::{
     cors::CorsLayer,
     trace::{DefaultMakeSpan, TraceLayer},
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use configs::Config;
 use routes::create_router;
@@ -23,16 +24,17 @@ use crate::state::AppState;
 async fn main() {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "werewolf_backend=debug,tower_http=debug,axum::rejection=trace".into()),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                "werewolf_backend=debug,tower_http=debug,axum::rejection=trace".into()
+            }),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     let config = Config::from_env().expect("Failed to load configuration");
 
-    let redis_client = redis::Client::open(config.redis.url.clone())
-        .expect("Failed to create Redis client");
+    let redis_client =
+        redis::Client::open(config.redis.url.clone()).expect("Failed to create Redis client");
     let redis_conn = redis_client
         .get_connection_manager()
         .await
@@ -50,6 +52,6 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.server.port));
     tracing::info!("Starting server on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

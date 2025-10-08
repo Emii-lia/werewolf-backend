@@ -6,32 +6,21 @@ use axum::{
     middleware::from_fn_with_state,
 };
 use utoipa::OpenApi;
-use crate::{
-    handlers::{signup, login, create_guest_session},
-    dto::{
-        SignupRequest,
-        LoginRequest,
-        LoginResponse,
-        UserResponse,
-        RoleResponse,
-        RoleCreateRequest,
-        RoleUpdateRequest,
-        CreateRoomRequest,
-        RoomInfo,
-        RoomDetails,
-        PlayerDetails,
-        CreateGuestRequest,
-        GuestSessionResponse,
-    },
-    models::{GameState},
-    state::AppState,
-    middleware::{auth_middleware, inject_state_middleware},
-};
 use crate::handlers::{
-    create_role, get_role_by_id, get_roles,
-    get_user_by_id, get_user_by_username, get_users, verify_username_exists,
-    update_role, ws_handler,
-    create_room, get_rooms, get_room_details,
+    create_role, create_room, get_role_by_id, get_roles, get_room_details, get_rooms,
+    get_user_by_id, get_user_by_username, get_users, update_role, verify_username_exists,
+    ws_handler,
+};
+use crate::{
+    dto::{
+        CreateGuestRequest, CreateRoomRequest, GuestSessionResponse, LoginRequest, LoginResponse,
+        PlayerDetails, RoleCreateRequest, RoleResponse, RoleUpdateRequest, RoomDetails, RoomInfo,
+        SignupRequest, UserResponse,
+    },
+    handlers::{create_guest_session, login, signup},
+    middleware::{auth_middleware, inject_state_middleware},
+    models::GameState,
+    state::AppState,
 };
 
 #[derive(OpenApi)]
@@ -139,8 +128,7 @@ async fn serve_api_docs() -> impl IntoResponse {
 }
 
 async fn serve_swagger() -> Html<String> {
-    Html(format!(
-        r#"<!DOCTYPE html>
+    Html(r#"<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="utf-8" />
@@ -152,14 +140,13 @@ async fn serve_swagger() -> Html<String> {
             <div id="swagger-ui"></div>
             <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js" crossorigin></script>
             <script>
-                window.onload = () => {{
-                    window.ui = SwaggerUIBundle({{
+                window.onload = () => {
+                    window.ui = SwaggerUIBundle({
                         url: '/api-docs/openapi.json',
                         dom_id: '#swagger-ui',
-                    }});
-                }};
+                    });
+                };
             </script>
         </body>
-        </html>"#
-    ))
+        </html>"#.to_string())
 }

@@ -7,14 +7,9 @@ use axum::extract::Path;
 use uuid::Uuid;
 use crate::{
     middleware::AuthUser,
-    models::{Player, GameState},
+    models::GameState,
     state::AppState,
-    dto::{
-        CreateRoomRequest,
-        RoleResponse,
-        RoomInfo,
-        RoomDetails,
-    }
+    dto::{CreateRoomRequest, RoomDetails, RoomInfo},
 };
 use crate::dto::PlayerDetails;
 
