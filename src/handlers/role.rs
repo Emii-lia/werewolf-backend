@@ -38,15 +38,18 @@ pub async fn create_role(
         description: data.description,
         image: data.image,
         role_type: data.role_type,
+        priority: data.priority,
     };
-    
+
     let json = serde_json::to_string(&role)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let key = format!("role:{}", role.id);
-    let _: () = conn.set(&key, json).await
+    let _: () = conn
+        .set(&key, json)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
-    Ok((StatusCode::CREATED, Json(role))) 
+
+    Ok((StatusCode::CREATED, Json(role)))
 }
 
 #[utoipa::path(
@@ -66,26 +69,29 @@ pub async fn get_roles(
     _auth: AuthUser,
 ) -> Result<Json<Vec<RoleResponse>>, (StatusCode, String)> {
     let mut conn = state.redis.clone();
-    let roles: Vec<String> = conn.keys("role:*")
+    let roles: Vec<String> = conn
+        .keys("role:*")
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     let mut role_responses = Vec::new();
     for role_key in roles {
-        let role_data: Option<String> = conn.get(&role_key).await
+        let role_data: Option<String> = conn
+            .get(&role_key)
+            .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        let role_data = role_data
-            .ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+        let role_data = role_data.ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
         let role: Role = serde_json::from_str(&role_data)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        
-    role_responses.push(RoleResponse {
+
+        role_responses.push(RoleResponse {
             id: role.id,
             name: role.name,
             slug: role.slug,
             description: role.description,
             image: role.image,
             role_type: role.role_type,
+            priority: role.priority,
         });
     }
     Ok(Json(role_responses))
@@ -110,16 +116,17 @@ pub async fn get_roles(
 pub async fn get_role_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser
+    _auth: AuthUser,
 ) -> Result<Json<RoleResponse>, (StatusCode, String)> {
     let mut conn = state.redis.clone();
     let key = format!("role:{}", id);
 
-    let role_data: Option<String> = conn.get(&key).await
+    let role_data: Option<String> = conn
+        .get(&key)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let role_data = role_data
-        .ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+    let role_data = role_data.ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
 
     let role: Role = serde_json::from_str(&role_data)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -131,6 +138,7 @@ pub async fn get_role_by_id(
         description: role.description,
         image: role.image,
         role_type: role.role_type,
+        priority: role.priority,
     }))
 }
 
@@ -159,11 +167,12 @@ pub async fn update_role(
 ) -> Result<Json<RoleResponse>, (StatusCode, String)> {
     let mut conn = state.redis.clone();
     let key = format!("role:{}", id);
-    let role_data: Option<String> = conn.get(&key).await
+    let role_data: Option<String> = conn
+        .get(&key)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let role_data = role_data
-        .ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+    let role_data = role_data.ok_or((StatusCode::NOT_FOUND, "Role not found".to_string()))?;
 
     let role: Role = serde_json::from_str(&role_data)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -174,11 +183,14 @@ pub async fn update_role(
         description: data.description.unwrap_or(role.description),
         image: data.image.or(role.image),
         role_type: data.role_type.unwrap_or(role.role_type),
+        priority: data.priority.or(role.priority),
     };
 
     let json = serde_json::to_string(&new_role)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let _: () = conn.set(&key, json).await
+    let _: () = conn
+        .set(&key, json)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(RoleResponse {
@@ -188,25 +200,26 @@ pub async fn update_role(
         description: new_role.description,
         image: new_role.image,
         role_type: new_role.role_type,
+        priority: new_role.priority,
     }))
 }
 
-pub async fn fetch_available_roles (
-    redis: &mut ConnectionManager
-) -> Result<Vec<RoleResponse>, String>{
+pub async fn fetch_available_roles(
+    redis: &mut ConnectionManager,
+) -> Result<Vec<RoleResponse>, String> {
     let role_keys: Vec<String> = redis
         .keys("role:*")
         .await
         .map_err(|e| format!("Failed to fetch roles: {}", e))?;
-    
+
     let mut roles = Vec::new();
-    
+
     for key in role_keys {
         let role_data: Option<String> = redis
             .get(&key)
             .await
             .map_err(|e| format!("Failed to get role data: {}", e))?;
-        
+
         if let Some(data) = role_data {
             let role: Role = serde_json::from_str(&data)
                 .map_err(|e| format!("Failed to parse role data: {}", e))?;
@@ -217,25 +230,26 @@ pub async fn fetch_available_roles (
                 description: role.description,
                 image: role.image,
                 role_type: role.role_type,
+                priority: role.priority,
             });
         }
     }
     Ok(roles)
 }
 
-pub async fn assign_roles (
+pub async fn assign_roles(
     redis: &mut ConnectionManager,
     player_ids: Vec<Uuid>,
 ) -> Result<Vec<RoleAssignment>, String> {
     let distribution = RoleDistribution::for_players(player_ids.len());
-    
+
     let available_roles = fetch_available_roles(redis).await?;
-    
+
     let roles_by_type = group_roles_by_type(available_roles);
-    
-    let selected_role_ids = select_roles_for_game(roles_by_type, distribution)
-        .map_err(|e| e.to_string())?;
-    
+
+    let selected_role_ids =
+        select_roles_for_game(roles_by_type, distribution).map_err(|e| e.to_string())?;
+
     if selected_role_ids.len() != player_ids.len() {
         Err(format!(
             "Role count {} does not match player count {}",
@@ -246,13 +260,9 @@ pub async fn assign_roles (
         let assignments: Vec<RoleAssignment> = player_ids
             .into_iter()
             .zip(selected_role_ids.into_iter())
-            .map(|(player_id, role_id)| RoleAssignment {
-                player_id,
-                role_id,
-            })
+            .map(|(player_id, role_id)| RoleAssignment { player_id, role_id })
             .collect();
-        
+
         Ok(assignments)
     }
-    
 }

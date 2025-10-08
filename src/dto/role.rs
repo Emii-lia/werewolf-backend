@@ -1,9 +1,9 @@
+use crate::models::RoleType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use crate::models::RoleType;
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoleResponse {
     pub id: Uuid,
     pub name: String,
@@ -11,6 +11,7 @@ pub struct RoleResponse {
     pub description: String,
     pub image: Option<String>,
     pub role_type: RoleType,
+    pub priority: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -20,15 +21,17 @@ pub struct RoleCreateRequest {
     pub description: String,
     pub image: Option<String>,
     pub role_type: RoleType,
+    pub priority: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoleUpdateRequest {
     pub name: Option<String>,
     pub slug: Option<String>,
     pub description: Option<String>,
     pub image: Option<String>,
     pub role_type: Option<RoleType>,
+    pub priority: Option<i32>,
 }
 
 pub struct RoleAssignment {
@@ -44,7 +47,7 @@ pub struct RoleDistribution {
 
 impl RoleDistribution {
     pub fn for_players(count: usize) -> Self {
-        match  count {
+        match count {
             3..=4 => Self {
                 beast_count: 1,
                 citizen_count: count - 1,
@@ -69,7 +72,7 @@ impl RoleDistribution {
                 beast_count: count / 4,
                 citizen_count: count / 2,
                 special_count: count / 4,
-            }
+            },
         }
     }
 }

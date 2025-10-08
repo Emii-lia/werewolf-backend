@@ -1,11 +1,9 @@
-use rand::seq::{IndexedRandom, SliceRandom};
-use uuid::Uuid;
 use crate::dto::{RoleDistribution, RoleResponse, RolesByType};
 use crate::models::RoleType;
+use rand::seq::SliceRandom;
+use uuid::Uuid;
 
-pub fn group_roles_by_type(
-    roles: Vec<RoleResponse>,
-) -> RolesByType {
+pub fn group_roles_by_type(roles: Vec<RoleResponse>) -> RolesByType {
     let mut result = RolesByType {
         beasts: Vec::new(),
         citizens: Vec::new(),
@@ -29,14 +27,14 @@ pub fn group_roles_by_type(
     result
 }
 
-pub fn select_roles_for_game (
+pub fn select_roles_for_game(
     roles: RolesByType,
     distribution: RoleDistribution,
-) -> Result<Vec<Uuid>, String>{
+) -> Result<Vec<Uuid>, String> {
     let mut selected_roles = Vec::new();
     let mut rng = rand::rng();
 
-    if  roles.beasts.is_empty() {
+    if roles.beasts.is_empty() {
         return Err("No beasts available".to_string());
     }
     let werewolf = roles.beasts.first().unwrap();
@@ -52,10 +50,9 @@ pub fn select_roles_for_game (
     }
 
     let special_to_assign = distribution.special_count.min(roles.special.len());
-    let mut specials: Vec<_> = roles.special
-        .choose_multiple(&mut rng, special_to_assign)
-        .collect();
-    for role in specials {
+    let mut specials = roles.special;
+    specials.sort_by_key(|role| role.priority.unwrap_or(999));
+    for role in specials.iter().take(special_to_assign) {
         selected_roles.push(role.id);
     }
 

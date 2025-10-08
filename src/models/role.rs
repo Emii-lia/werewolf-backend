@@ -17,4 +17,5 @@ pub struct Role {
     pub description: String,
     pub image: Option<String>,
     pub role_type: RoleType,
+    pub priority: Option<i32>,
 }
