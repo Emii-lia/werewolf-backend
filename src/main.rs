@@ -9,7 +9,9 @@ mod middleware;
 mod websocket;
 
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::net::TcpListener;
+use tokio::time::sleep;
 use tower_http::{
     cors::CorsLayer,
     trace::{DefaultMakeSpan, TraceLayer},
@@ -35,11 +37,15 @@ async fn main() {
 
     let redis_client =
         redis::Client::open(config.redis.url.clone()).expect("Failed to create Redis client");
-    let redis_conn = redis_client
-        .get_connection_manager()
-        .await
-        .expect("Failed to connect to Redis");
-
+    let redis_conn = loop {
+      match redis_client.get_connection_manager().await {
+        Ok(conn) => break conn,
+        Err(e) => {
+          tracing::warn!("Redis not ready, retrying: {}", e);
+          sleep(Duration::from_secs(2)).await;
+        }
+      }
+    };
     let state = AppState::new(redis_conn, config.clone());
 
     let app = create_router(state)
