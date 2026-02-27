@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: werewolf-backend
+    runtime: rust
+    region: singapore
+    plan: free
+    buildCommand: cargo build --release
+    startCommand: ./target/release/werewolf-backend
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RUST_LOG
+        value: info
+    healthCheckPath: /health
