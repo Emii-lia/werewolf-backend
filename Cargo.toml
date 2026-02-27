@@ -10,7 +10,7 @@ axum = { version = "0.8.6", features = ["http2", "macros", "ws"] }
 dotenvy = "0.15.7"
 headers = "0.4.1"
 jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] }
-redis = { version = "0.32.6", features = ["connection-manager", "tokio-comp"] }
+redis = { version = "0.32.6", features = ["connection-manager", "tokio-comp", "tls-native-tls"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tokio = { version = "1.47.1", features = ["full"] }
