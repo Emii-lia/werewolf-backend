@@ -49,7 +49,12 @@ async fn main() {
         )
         .layer(CorsLayer::permissive());
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.server.port));
+  let port: u16 = std::env::var("PORT")
+    .unwrap_or_else(|_| config.server.port.to_string())
+    .parse()
+    .expect("Invalid PORT");
+
+  let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Starting server on {}", addr);
 
     let listener = TcpListener::bind(addr).await.unwrap();
