@@ -33,7 +33,7 @@ impl Config {
             port: std::env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "3001".to_string())
                 .parse()
-                .unwrap_or(3000),
+                .unwrap_or(3001),
         };
 
         let redis = RedisConfig {
