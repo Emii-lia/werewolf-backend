@@ -39,7 +39,7 @@ impl GameRoom {
             host_id,
             players: Vec::new(),
             connections: HashMap::new(),
-            max_players: 10,
+            max_players: 100,
             game_state: GameState::Waiting,
         }
     }
