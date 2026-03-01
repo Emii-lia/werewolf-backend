@@ -51,7 +51,7 @@ where
 
     async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
-        state: &S,
+        _state: &S,
     ) -> Result<Self, Self::Rejection> {
         if let Some(user_id) = parts.extensions.get::<Uuid>().copied() {
             return Ok(AuthUser(user_id));
@@ -111,10 +111,6 @@ impl PlayerIdentity {
             PlayerIdentity::Registered { username, .. } => username,
             PlayerIdentity::Guest { username, .. } => username,
         }
-    }
-
-    pub fn is_guest(&self) -> bool {
-        matches!(self, PlayerIdentity::Guest { .. })
     }
 }
 
