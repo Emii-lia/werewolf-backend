@@ -7,6 +7,7 @@ use crate::models::GameState;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateRoomRequest {
     pub name: String,
+    pub max_players: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

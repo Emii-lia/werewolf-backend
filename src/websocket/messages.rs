@@ -7,7 +7,7 @@ use uuid::Uuid;
 #[serde(tag = "type", rename_all = "PascalCase")]
 pub enum ClientMessage {
     #[serde(rename_all = "snake_case")]
-    CreateRoom { room_name: String },
+    CreateRoom { room_name: String, max_players: usize },
     #[serde(rename_all = "snake_case")]
     JoinRoom { room_id: Uuid },
     #[serde(rename_all = "snake_case")]

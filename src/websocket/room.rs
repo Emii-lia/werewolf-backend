@@ -32,14 +32,14 @@ pub struct GameRoom {
 }
 
 impl GameRoom {
-    pub fn new(id: Uuid, name: String, host_id: Uuid) -> Self {
+    pub fn new(id: Uuid, name: String, max_players: usize, host_id: Uuid) -> Self {
         Self {
             id,
             name,
             host_id,
             players: Vec::new(),
             connections: HashMap::new(),
-            max_players: 100,
+            max_players,
             game_state: GameState::Waiting,
         }
     }
