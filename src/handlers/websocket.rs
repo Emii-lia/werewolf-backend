@@ -83,10 +83,10 @@ async fn handle_client_message(
     mut redis: redis::aio::ConnectionManager,
 ) {
     match msg {
-        ClientMessage::CreateRoom { room_name } => {
+        ClientMessage::CreateRoom { room_name, max_players } => {
             let mut rooms = room_state.rooms.write().await;
             let room_id = Uuid::new_v4();
-            let room = crate::websocket::GameRoom::new(room_id, room_name.clone(), user_id);
+            let room = crate::websocket::GameRoom::new(room_id, room_name.clone(), max_players, user_id);
             rooms.insert(room_id, room);
 
             let msg = ServerMessage::RoomCreated { room_id, room_name };

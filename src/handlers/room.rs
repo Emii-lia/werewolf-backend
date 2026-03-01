@@ -34,7 +34,7 @@ pub async fn create_room(
     let room_id = Uuid::new_v4();
     let mut rooms = state.room_state.rooms.write().await;
 
-    let room = crate::websocket::GameRoom::new(room_id, data.name.clone(), auth.0);
+    let room = crate::websocket::GameRoom::new(room_id, data.name.clone(), data.max_players ,auth.0);
 
     let room_info = RoomInfo {
         id: room.id,
